@@ -1,96 +1,179 @@
 #include <iostream>
 #include <fstream>
-#include <math.h>
 #include <cstddef>
 #include <iomanip>
-#include <time.h>
 #include <Windows.h>
 
 
 using namespace std;
 
-//����������� ����������� ��������� ������
-ostream& operator<<(ostream &stream, char *s){
-    for (char *ps=s; *ps; ps++){
-        if (*ps=='�')
-            stream<<char(241);
-        else{
-            if (*ps =='�')
-                stream <<char(240);
-            else{
-                if (*ps<0)
-                    stream<<char(*ps+64+176);
-                else
-                    stream<<*ps;
-            }
-        }
-    }
-    return stream;
+//Число дней в месяцах года с 0 элементом не работаем
+int DayInMonth[] = {-1, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+
+class date {
+public:
+    //Мне захотелось год, месяц, день int сделать
+    int _Year;
+    int _Month;
+    int _Day;
+public :
+    //Конструктор преобразования с начальным инитом private переменных
+    //говорят очень эффективно, ну значит так и запишем
+    date(int iYear = 2015, int iMonth = 1, int iDay = 1) {
+        _Day = iDay;
+        _Month = iMonth;
+        _Year = iYear;
+    };
+
+    bool isintYear() { return (_Year % 4 == 0); }//Високостный год нацело делиться на 4
+
+    //Устанавливает месяц события
+    void SetMonth();
+
+    //Устанавливает день месяца события
+    void SetDay();
+
+    //Возвращает число дней в году
+    int GetDaysInYear();
+
+    //Преобразует дату в число дней от начала года
+    int GetDayOfYear();
+
+    //Возвращает Число дней между событиями
+    int GetDaysBetween(date Today);
+};
+
+void date::SetMonth() {
+    std::cout << "Month:  ";
+    std::cin >> _Month;
+    if (_Month < 1 || 12 < _Month)
+        std::cout << "Wrong value of Month!Program set it as " << (_Month = 1) << "\r\n";
+}
+
+void date::SetDay() {
+    std::cout << "Day: ";
+    std::cin >> _Day;
+    if (DayInMonth[_Month] + (isintYear() ? 1 : 0) < _Day)
+        std::cout << "Wrong value of Day!Program set it as 1 " << (_Day = 1) << "\r\n";
+}
+
+
+int date::GetDaysInYear() {
+    return 365 + (isintYear() ? 1 : 0);
+}
+
+int date::GetDayOfYear() {
+    int Days = _Day;
+    for (int i = 1; i < _Month; i++)
+        Days += DayInMonth[i];
+    if (isintYear())
+        Days++;//+ 29 feb
+    return Days;
+}
+
+int date::GetDaysBetween(date Today) {
+    int DaysTillEvent = GetDaysInYear() - GetDayOfYear();
+    int DaysTillToday = Today.GetDaysInYear() - Today.GetDayOfYear();
+    return DaysTillToday - DaysTillEvent;
 }
 
 
 struct stack {
-    // struct stack *previous;
-    string task;
-    int priority;
-
+    string Task;
+    int Priority;
+    int Month;
+    int Day;
     struct stack *next;
 };
 
-void Queue(stack *&st, string symbol) {
-    stack *top = new(stack);
-    top->task = symbol;
-    st->next = top;
-    st = top;
-}
-
-
 void Showtask(stack *&head, int &StackSize) {
-    stack *previous;
-    bool NotFirst = false;
+    stack *remembered = head;
+    int size = StackSize;
 
-    while (head->priority > 1) {
-        previous = head;
-        head = previous->next;
-        NotFirst = true;
+    stack *previous;
+
+    for (int p = 1; p <= 3; p++) {
+        while ((size > 0) && (head->Priority > p)) {
+            previous = head;
+            head = previous->next;
+            size--;
+        }
+        if (size > 0)
+            goto EXIT;
+        else {
+            head = remembered;
+            size = StackSize;
+        }
     }
-    cout << head->task << endl;
-    cout << "Has the task been done?";
+
+    EXIT:
+    cout << head->Task << endl;
+    cout << "Has the Task been done?";
     string HasBeenDone;
     cin >> HasBeenDone;
-    if ((HasBeenDone == "yes") && (NotFirst)) {
+    if ((HasBeenDone == "yes") && (size == StackSize)) {//если это задание находится на вершине стэка
+        head = head->next;
+        StackSize--;
+    }
+    else if ((HasBeenDone == "yes") && (size > 1)) {
         previous->next = head->next;
         delete head;
-    } else if (HasBeenDone == "yes") {
-        head = head->next;
+        head = remembered;
+        StackSize--;
+    } else if ((HasBeenDone == "yes") && (size == 1)) {
+        delete head;
+        head = remembered;
+        StackSize--;
     }
+
 }
 
-void AddTask(stack *&tail, int &StackSize) {
-    cout << "Enter the task to add: ";
-    string task;
+void AddTask(stack *&tail, int &StackSize, date Today) {
+    cout << "Enter the Task to add: ";
+    string Task;
     cin.sync();
-    getline(cin, task);
-    int priority = 4;
+    getline(cin, Task);
 
-    cout << "Enter its priority. It can have three ranges: ";
-    cin >> priority;
+    int Priority;
+    date Deadline;
+    cout << "Enter deadline`s date:" << endl;
+    Deadline.SetMonth();
+    Deadline.SetDay();
+    int DaysLeft = Deadline.GetDaysBetween(Today);
+    switch (DaysLeft) {
+        case 0:
+        case 1:
+            Priority = 1;
+            break;
+        case 2:
+        case 3:
+        case 4:
+        case 5:
+        case 6:
+            Priority = 2;
+            break;
+        default:
+            Priority = 3;
+    }
 
     if (StackSize == 0) {
-        tail->task = task;
-        tail->priority = priority;
-        StackSize++;
+        tail->Task = Task;
+        tail->Priority = Priority;
+        tail->Month = Deadline._Month;
+        tail->Day = Deadline._Day;
 
+        StackSize++;
     } else {
         stack *next = new(stack);
         tail->next = next;
-        next->task = task;
-        next->priority = priority;
+        next->Task = Task;
+        next->Priority = Priority;
+        next->Month = Priority;
+        next->Day = Priority;
         tail = next;
-        StackSize++;
 
+        StackSize++;
     }
-    cout << task << endl;
 }
 
 void WriteToTheFile(stack *&head, int &StackSize) {
@@ -99,98 +182,95 @@ void WriteToTheFile(stack *&head, int &StackSize) {
 
         output << StackSize << '\n';
         while (StackSize > 1) {
-            output << head->priority << " " << head->task << '\n';
+            output << head->Month << " " << head->Day << " " << head->Task << '\n';
 
             head = head->next;
             StackSize--;
         }
-        output << head->priority << " " << head->task;
+        output << head->Month << " " << head->Day << " " << head->Task;
     }
 }
 
 
-void ReadFromTheFile(stack *&tail, int &StackSize) {
+void ReadFromTheFile(stack *&tail, int &StackSize, date Today) {
     ifstream input("tasks.txt");
     string inter;
     getline(input, inter);
     StackSize = stoi(inter);
-    //�������� ������ ������, ���� �� ���� ������ ��������� � �����
+
+    bool IsFirst = true;
+
     if (StackSize > 0) {
-        int priority;
-        input >> priority;
-        string task;
-
-        getline(input, task);
-        tail->task = task;
-        tail->priority = priority;
-    }
-    if (StackSize > 1) {
         while (!(input.eof())) {
-            stack *next = new(stack);
-            tail->next = next;
+            if ((StackSize > 1) && (!(IsFirst))) {
+                //если в файле больше 1 записи то выделяем память для каждой новой записи
+                stack *next = new(stack);
+                tail->next = next;
+                tail = next;
+            }
+            IsFirst = false;
 
-            int priority;
-            input >> priority;
-            next->priority = priority;
+            date Deadline;
+            input >> Deadline._Month;
+            input >> Deadline._Day;
 
             string task;
             getline(input, task);
-            next->task = task;
+            tail->Task = task;
+            tail->Month = Deadline._Month;
+            tail->Day = Deadline._Day;
 
-            tail = next;
-        }
-    }
-}
-
-void IncreasePriority(stack *&head, int StackSize) {
-    if (StackSize > 0) {
-        int size = StackSize;
-        stack *remembered = head;
-        while (size > 0) {
-            if (head->priority == 1) {
-                return;
+            int DaysLeft = Deadline.GetDaysBetween(Today);
+            switch (DaysLeft) {
+                case 0:
+                case 1:
+                    tail->Priority = 1;
+                    break;
+                case 2:
+                case 3:
+                case 4:
+                case 5:
+                case 6:
+                    tail->Priority = 2;
+                    break;
+                default:
+                    tail->Priority = 3;
             }
-            head = head->next;
-            size--;
-        }
 
-        size = StackSize;
-        head = remembered;
-        while (size > 0) {
-            head->priority--;
-            head = head->next;
-            size--;
         }
-        head = remembered;
     }
 }
-
 
 int main() {
-    setlocale(LC_ALL, "russian");
+
+    cout << "Enter today`s date" << endl;
+    date Today;
+    Today.SetMonth();
+    Today.SetDay();
 
     int StackSize = 0;
-    stack *tail;
-    stack *head = tail;
-    ReadFromTheFile(tail, StackSize);
+    stack *tail = new(stack);
+    stack *head = new(stack);
+    head = tail;
+    ReadFromTheFile(tail, StackSize, Today);
 
-    string answer;
+    char answer;
     while (true) {
         cout <<
-        "Enter 's', if you want to see a task, or enter 'a', if you want to add a task, or enter '!', if you want to stop working with program: ";
+        "Enter 's', if you want to see a Task, or enter 'a', if you want to add a Task, or enter '!', if you want to stop working with program: ";
 
         cin >> answer;
-        if ((answer == "s") || (answer == "�")) {
+        if (answer == 's') {
             Showtask(head, StackSize);
         }
-        if ((answer == "a") || (answer == "�")) {
-            AddTask(tail, StackSize);
+        if (answer == 'a') {
+            AddTask(tail, StackSize, Today);
         }
-        if (answer == "!") {
+        if (answer == '!') {
             goto EXIT;
         }
     }
     EXIT:
-    IncreasePriority(head, StackSize);
     WriteToTheFile(head, StackSize);
+    delete (head);
 }
