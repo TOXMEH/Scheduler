@@ -2,7 +2,8 @@
 #include <fstream>
 #include <cstddef>
 #include <iomanip>
-#include <Windows.h>
+//#include <string>
+//#include <Windows.h>
 
 
 using namespace std;
@@ -90,6 +91,11 @@ void Showtask(stack *&head, int &StackSize) {
     stack *remembered = head;
     int size = StackSize;
 
+    if (StackSize == 0) {
+        cout << "There are no tasks" << endl;
+        return;
+    }
+
     stack *previous;
 
     for (int p = 1; p <= 3; p++) {
@@ -108,7 +114,7 @@ void Showtask(stack *&head, int &StackSize) {
 
     EXIT:
     cout << head->Task << endl;
-    cout << "Has the Task been done?";
+    cout << "Has the Task been done? ";
     string HasBeenDone;
     cin >> HasBeenDone;
     if ((HasBeenDone == "yes") && (size == StackSize)) {//если это задание находится на вершине стэка
@@ -131,8 +137,7 @@ void Showtask(stack *&head, int &StackSize) {
 void AddTask(stack *&tail, int &StackSize, date Today) {
     cout << "Enter the Task to add: ";
     string Task;
-    cin.sync();
-    getline(cin, Task);
+    cin >> Task;
 
     int Priority;
     date Deadline;
@@ -155,6 +160,8 @@ void AddTask(stack *&tail, int &StackSize, date Today) {
         default:
             Priority = 3;
     }
+    if (DaysLeft < 0)
+        Priority = 1;
 
     if (StackSize == 0) {
         tail->Task = Task;
@@ -168,8 +175,8 @@ void AddTask(stack *&tail, int &StackSize, date Today) {
         tail->next = next;
         next->Task = Task;
         next->Priority = Priority;
-        next->Month = Priority;
-        next->Day = Priority;
+        next->Month = Deadline._Month;
+        next->Day = Deadline._Day;
         tail = next;
 
         StackSize++;
@@ -194,6 +201,10 @@ void WriteToTheFile(stack *&head, int &StackSize) {
 
 void ReadFromTheFile(stack *&tail, int &StackSize, date Today) {
     ifstream input("tasks.txt");
+    if (!input.is_open()) {
+        cout << "tasks.txt cannot be found" << endl;
+        return;
+    }
     string inter;
     getline(input, inter);
     StackSize = stoi(inter);
@@ -256,10 +267,12 @@ int main() {
 
     char answer;
     while (true) {
-        cout <<
-        "Enter 's', if you want to see a Task, or enter 'a', if you want to add a Task, or enter '!', if you want to stop working with program: ";
+        cout << "Enter 's', if you want to see a Task" << endl;
+        cout << "Enter 'a', if you want to add a Task" << endl;
+        cout << "Enter '!', if you want to stop working with program: ";
 
         cin >> answer;
+        cout << endl;
         if (answer == 's') {
             Showtask(head, StackSize);
         }
@@ -269,6 +282,7 @@ int main() {
         if (answer == '!') {
             goto EXIT;
         }
+        cout << endl;
     }
     EXIT:
     WriteToTheFile(head, StackSize);
